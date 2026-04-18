@@ -1,1 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ReallyCloud | Admin Control</title>
+    <style>
+        :root { --main: #0288d1; --bg: #f0f4f8; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; width: 100%; max-width: 700px; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
+        .hidden { display: none; }
+        .admin-box { background: #e3f2fd; border: 2px dashed var(--main); padding: 20px; border-radius: 12px; margin-top: 20px; }
+        .file-item, .user-item { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #eee; align-items: center; }
+        input { padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; width: 100%; box-sizing: border-box; }
+        button { background: var(--main); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+        .tab-btn { background: #ddd; color: #333; width: auto; margin-right: 10px; padding: 8px 15px; }
+        .active-tab { background: var(--main); color: white; }
+    </style>
+</head>
+<body>
 
+<div class="card">
+    <h1 style="color:var(--main); text-align:center;">ReallyCloud</h1>
+
+    <div id="login-form">
+        <input type="text" id="u" placeholder="Admin Username">
+        <input type="password" id="p" placeholder="Admin Password">
+        <button onclick="doLogin()">Login</button>
+    </div>
+
+    <div id="dash" class="hidden">
+        <div style="margin-bottom:20px;">
+            <button class="tab-btn active-tab" onclick="showTab('files')">Files</button>
+            <button id="admin-tab-btn" class="tab-btn hidden" onclick="showTab('users')">Manage Accounts</button>
+        </div>
+
+        <div id="files-section">
+            <input type="file" id="picker">
+            <button onclick="up()">Upload File</button>
+            <div id="file-list" style="margin-top:20px;"></div>
+        </div>
+
+        <div id="users-section" class="hidden">
+            <div class="admin-box">
+                <h3>Add New Cloud User</h3>
+                <input type="text" id="new-u" placeholder="Username">
+                <input type="password" id="new-p" placeholder="Password">
+                <button style="background:#28a745" onclick="addUser()">Create Account</button>
+            </div>
+            <div id="user-list" style="margin-top:20px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let me = ""; let isAdm = false;
+
+    async function doLogin() {
+        const user = document.getElementById('u').value;
+        const pass = document.getElementById('p').value;
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: user, password: pass})
+        });
+        if(res.ok) {
+            const data = await res.json();
+            me = data.username; isAdm = data.isAdmin;
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('dash').classList.remove('hidden');
+            if(isAdm) document.getElementById('admin-tab-btn').classList.remove('hidden');
+            loadFiles();
+        } else { alert("Login Denied"); }
+    }
+
+    function showTab(tab) {
+        document.getElementById('files-section').classList.toggle('hidden', tab !== 'files');
+        document.getElementById('users-section').classList.toggle('hidden', tab !== 'users');
+        if(tab === 'users') loadUsers();
+    }
+
+    async function loadUsers() {
+        const res = await fetch('/api/admin/users');
+        const users = await res.json();
+        document.getElementById('user-list').innerHTML = '<h4>Existing Users</h4>' + 
+            users.map(u => `<div class="user-item"><span>👤 ${u.username}</span> <span>${u.isAdmin ? '[Admin]' : '[User]'}</span></div>`).join('');
+    }
+
+    async function addUser() {
+        const u = document.getElementById('new-u').value;
+        const p = document.getElementById('new-p').value;
+        await fetch('/api/admin/add-user', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ adminUser: me, newUser: {username: u, password: p} })
+        });
+        alert("Account Created");
+        loadUsers();
+    }
+
+    async function loadFiles() {
+        const res = await fetch('/api/files');
+        const files = await res.json();
+        document.getElementById('file-list').innerHTML = files.map(f => `
+            <div class="file-item">
+                <span>📄 ${f}</span>
+                <div>
+                    <a href="/download/${f}" download style="margin-right:10px; color:var(--main); text-decoration:none;">Download</a>
+                    <button onclick="del('${f}')" style="background:none; color:red; width:auto; padding:0;">Delete</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function up() {
+        const p = document.getElementById('picker');
+        const fd = new FormData(); fd.append('file', p.files[0]);
+        await fetch('/api/upload', { method: 'POST', body: fd });
+        loadFiles();
+    }
+
+    async function del(n) { if(confirm('Delete?')) { await fetch(`/api/delete/${n}`, {method:'DELETE'}); loadFiles(); } }
+</script>
+</body>
+</html>
