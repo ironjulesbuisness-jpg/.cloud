@@ -51,12 +51,17 @@
 </div>
 
 <script>
+    // --- CONFIGURATION ---
+    // Change this to your Render URL (e.g., https://reallycloud-api.onrender.com)
+    // Keep it as "http://localhost:8080" for local Windows testing.
+    const BACKEND_URL = "https://reallycloudbackend.onrender.com"; 
+
     let me = ""; let isAdm = false;
 
     async function doLogin() {
         const user = document.getElementById('u').value;
         const pass = document.getElementById('p').value;
-        const res = await fetch('/api/login', {
+        const res = await fetch(`${BACKEND_URL}/api/login`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({username: user, password: pass})
@@ -78,7 +83,7 @@
     }
 
     async function loadUsers() {
-        const res = await fetch('/api/admin/users');
+        const res = await fetch(`${BACKEND_URL}/api/admin/users`);
         const users = await res.json();
         document.getElementById('user-list').innerHTML = '<h4>Existing Users</h4>' + 
             users.map(u => `<div class="user-item"><span>👤 ${u.username}</span> <span>${u.isAdmin ? '[Admin]' : '[User]'}</span></div>`).join('');
@@ -87,7 +92,7 @@
     async function addUser() {
         const u = document.getElementById('new-u').value;
         const p = document.getElementById('new-p').value;
-        await fetch('/api/admin/add-user', {
+        await fetch(`${BACKEND_URL}/api/admin/add-user`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ adminUser: me, newUser: {username: u, password: p} })
@@ -97,13 +102,13 @@
     }
 
     async function loadFiles() {
-        const res = await fetch('/api/files');
+        const res = await fetch(`${BACKEND_URL}/api/files`);
         const files = await res.json();
         document.getElementById('file-list').innerHTML = files.map(f => `
             <div class="file-item">
                 <span>📄 ${f}</span>
                 <div>
-                    <a href="/download/${f}" download style="margin-right:10px; color:var(--main); text-decoration:none;">Download</a>
+                    <a href="${BACKEND_URL}/download/${f}" download style="margin-right:10px; color:var(--main); text-decoration:none;">Download</a>
                     <button onclick="del('${f}')" style="background:none; color:red; width:auto; padding:0;">Delete</button>
                 </div>
             </div>
@@ -112,12 +117,18 @@
 
     async function up() {
         const p = document.getElementById('picker');
+        if(!p.files[0]) return alert("Select a file first");
         const fd = new FormData(); fd.append('file', p.files[0]);
-        await fetch('/api/upload', { method: 'POST', body: fd });
+        await fetch(`${BACKEND_URL}/api/upload`, { method: 'POST', body: fd });
         loadFiles();
     }
 
-    async function del(n) { if(confirm('Delete?')) { await fetch(`/api/delete/${n}`, {method:'DELETE'}); loadFiles(); } }
+    async function del(n) { 
+        if(confirm('Delete?')) { 
+            await fetch(`${BACKEND_URL}/api/delete/${n}`, {method:'DELETE'}); 
+            loadFiles(); 
+        } 
+    }
 </script>
 </body>
 </html>
